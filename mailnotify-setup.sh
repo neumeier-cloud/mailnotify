@@ -7,10 +7,11 @@ if ! command -v whiptail &> /dev/null; then
   sudo apt install -y whiptail
 fi
 
-CHOICE=$(whiptail --title "Mailnotify Installer" --menu "Wähle eine Option:" 15 60 4 \
+CHOICE=$(whiptail --title "Mailnotify Installer" --menu "Wähle eine Option:" 20 70 5 \
 "1" "Installieren von Mailnotify" \
 "2" "Deinstallation von Mailnotify" \
-"3" "Beenden" 3>&1 1>&2 2>&3)
+"3" "Mailnotify neu bauen (Rebuild)" \
+"4" "Beenden" 3>&1 1>&2 2>&3)
 
 [ $? != 0 ] && echo "Abgebrochen." && exit 1
 
@@ -24,7 +25,6 @@ case $CHOICE in
     sudo apt update
     sudo apt install -y git build-essential libcurl4-openssl-dev
 
-    # /tmp/mailnotify sauber entfernen
     [ -d /tmp/mailnotify ] && rm -rf /tmp/mailnotify
 
     if ! git clone "$REPO_URL" /tmp/mailnotify; then
@@ -62,6 +62,34 @@ case $CHOICE in
     ;;
 
   3)
+    REPO_URL="https://github.com/neumeier-cloud/mailnotify.git"
+    INSTALL_DIR="/usr/local/bin"
+
+    whiptail --title "Mailnotify Rebuild" --infobox "Baue Mailnotify neu..." 8 40
+    sudo apt update
+    sudo apt install -y git build-essential libcurl4-openssl-dev
+
+    [ -d /tmp/mailnotify ] && rm -rf /tmp/mailnotify
+
+    if ! git clone "$REPO_URL" /tmp/mailnotify; then
+      whiptail --msgbox "❌ Fehler beim Klonen des Repos." 8 50
+      exit 1
+    fi
+
+    cd /tmp/mailnotify || exit 1
+
+    if ! gcc mailnotify.c -o mailnotify -lcurl; then
+      whiptail --msgbox "❌ Kompilierung fehlgeschlagen. Bitte 'mailnotify.c' prüfen." 8 60
+      exit 1
+    fi
+
+    sudo cp mailnotify "$INSTALL_DIR/"
+    sudo chmod +x "$INSTALL_DIR/mailnotify"
+
+    whiptail --msgbox "✅ Mailnotify wurde erfolgreich neu gebaut und installiert!" 10 60
+    ;;
+
+  4)
     clear
     exit 0
     ;;
