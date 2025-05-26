@@ -1,0 +1,10 @@
+[Unit]
+Description=Mailnotify daily status mail
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/mailnotify \
+  --to admin@example.com \
+  --subject "Systemstatus" \
+  --body "<h1>Alles OK</h1>" \
+  --html
