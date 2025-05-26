@@ -2,90 +2,161 @@
 #include <stdlib.h>
 #include <string.h>
 #include <curl/curl.h>
+#include <getopt.h>
 
-#define CONFIG_PATH "/etc/mailnotify.conf"
+#define MAX_ATTACHMENTS 10
+#define MAX_RECIPIENTS 10
 
 typedef struct {
-    char smtp_server[256];
-    int smtp_port;
-    char smtp_user[256];
-    char smtp_pass[256];
-    char from[256];
-} Config;
+    char *to;
+    char *subject;
+    char *body;
+    char *from_name;
+    int html;
+    char *attachments[MAX_ATTACHMENTS];
+    int attach_count;
+    char *cc[MAX_RECIPIENTS];
+    int cc_count;
+    char *bcc[MAX_RECIPIENTS];
+    int bcc_count;
+    char *priority;
+} MailConfig;
 
-int load_config(Config *cfg) {
-    FILE *file = fopen(CONFIG_PATH, "r");
-    if (!file) {
-        perror("Konfigurationsdatei fehlt");
-        return 0;
-    }
-    char line[512];
-    while (fgets(line, sizeof(line), file)) {
-        if (strstr(line, "smtp_server")) sscanf(line, "smtp_server = %255s", cfg->smtp_server);
-        if (strstr(line, "smtp_port"))   sscanf(line, "smtp_port = %d", &cfg->smtp_port);
-        if (strstr(line, "smtp_user"))   sscanf(line, "smtp_user = %255s", cfg->smtp_user);
-        if (strstr(line, "smtp_pass"))   sscanf(line, "smtp_pass = %255s", cfg->smtp_pass);
-        if (strstr(line, "from"))        sscanf(line, "from = %255s", cfg->from);
-    }
-    fclose(file);
-    return 1;
+void print_help() {
+    printf("mailnotify - Einfacher SMTP-Mailer für Linux mit MIME-Support\n\n");
+    printf("Nutzung:\n");
+    printf("  mailnotify [OPTIONEN]\n\n");
+    printf("Pflichtoptionen:\n");
+    printf("  --to <EMAIL>              Zieladresse\n");
+    printf("  --subject <TEXT>          Betreff\n");
+    printf("  --body <TEXT/HTML>        Inhalt\n\n");
+    printf("Optionale Flags:\n");
+    printf("  --html                    Inhalt ist HTML\n");
+    printf("  --from-name <NAME>        Absendername\n");
+    printf("  --attach <DATEI>          Anhang hinzufügen (mehrfach möglich)\n");
+    printf("  --cc <EMAIL>              Cc-Empfänger (mehrfach möglich)\n");
+    printf("  --bcc <EMAIL>             Bcc-Empfänger (mehrfach möglich)\n");
+    printf("  --priority <low|normal|high>  E-Mail-Priorität setzen\n");
+    printf("  -h, --help                Diese Hilfe anzeigen\n\n");
+    exit(0);
 }
 
 int main(int argc, char *argv[]) {
-    if (argc < 4) {
-        printf("Nutzung: %s --to <empfaenger> --subject <betreff> --body <nachricht> [--html]\n", argv[0]);
+    MailConfig cfg = {0};
+
+    static struct option long_options[] = {
+        {"to", required_argument, 0, 0},
+        {"subject", required_argument, 0, 0},
+        {"body", required_argument, 0, 0},
+        {"html", no_argument, 0, 0},
+        {"from-name", required_argument, 0, 0},
+        {"attach", required_argument, 0, 0},
+        {"cc", required_argument, 0, 0},
+        {"bcc", required_argument, 0, 0},
+        {"priority", required_argument, 0, 0},
+        {"help", no_argument, 0, 'h'},
+        {0, 0, 0, 0}
+    };
+
+    int opt, option_index = 0;
+    while ((opt = getopt_long(argc, argv, "h", long_options, &option_index)) != -1) {
+        if (opt == 'h') print_help();
+        if (opt == 0) {
+            const char *optname = long_options[option_index].name;
+            if (!strcmp(optname, "to")) cfg.to = optarg;
+            else if (!strcmp(optname, "subject")) cfg.subject = optarg;
+            else if (!strcmp(optname, "body")) cfg.body = optarg;
+            else if (!strcmp(optname, "html")) cfg.html = 1;
+            else if (!strcmp(optname, "from-name")) cfg.from_name = optarg;
+            else if (!strcmp(optname, "attach") && cfg.attach_count < MAX_ATTACHMENTS)
+                cfg.attachments[cfg.attach_count++] = optarg;
+            else if (!strcmp(optname, "cc") && cfg.cc_count < MAX_RECIPIENTS)
+                cfg.cc[cfg.cc_count++] = optarg;
+            else if (!strcmp(optname, "bcc") && cfg.bcc_count < MAX_RECIPIENTS)
+                cfg.bcc[cfg.bcc_count++] = optarg;
+            else if (!strcmp(optname, "priority")) cfg.priority = optarg;
+        }
+    }
+
+    if (!cfg.to || !cfg.subject || !cfg.body) {
+        fprintf(stderr, "❌ Pflichtoption fehlt. Nutze --help für Details.\n");
         return 1;
     }
-
-    const char *to = NULL, *subject = NULL, *body = NULL;
-    int html = 0;
-
-    for (int i = 1; i < argc; i++) {
-        if (!strcmp(argv[i], "--to")) to = argv[++i];
-        else if (!strcmp(argv[i], "--subject")) subject = argv[++i];
-        else if (!strcmp(argv[i], "--body")) body = argv[++i];
-        else if (!strcmp(argv[i], "--html")) html = 1;
-    }
-
-    if (!to || !subject || !body) {
-        fprintf(stderr, "Fehlende Parameter.\n");
-        return 1;
-    }
-
-    Config cfg;
-    if (!load_config(&cfg)) return 1;
 
     CURL *curl = curl_easy_init();
-    if (!curl) return 1;
+    if (!curl) {
+        fprintf(stderr, "❌ curl konnte nicht initialisiert werden.\n");
+        return 1;
+    }
 
     struct curl_slist *recipients = NULL;
-    char payload[4096];
-    snprintf(payload, sizeof(payload),
-             "To: %s\r\nFrom: %s\r\nSubject: %s\r\n%s\r\n%s\r\n",
-             to, cfg.from, subject,
-             html ? "Content-Type: text/html" : "Content-Type: text/plain",
-             body);
+    char from[256];
 
-    curl_easy_setopt(curl, CURLOPT_USERNAME, cfg.smtp_user);
-    curl_easy_setopt(curl, CURLOPT_PASSWORD, cfg.smtp_pass);
-    char url[300];
-    snprintf(url, sizeof(url), "smtps://%s:%d", cfg.smtp_server, cfg.smtp_port);
-    curl_easy_setopt(curl, CURLOPT_URL, url);
-    curl_easy_setopt(curl, CURLOPT_MAIL_FROM, cfg.from);
-    recipients = curl_slist_append(NULL, to);
-    curl_easy_setopt(curl, CURLOPT_MAIL_RCPT, recipients);
-    curl_easy_setopt(curl, CURLOPT_READFUNCTION, NULL);
-    curl_easy_setopt(curl, CURLOPT_READDATA, fmemopen(payload, strlen(payload), "r"));
-    curl_easy_setopt(curl, CURLOPT_UPLOAD, 1L);
+    // ⚠️ Feste SMTP-Zugangsdaten – ggf. durch Konfigparser ersetzen
+    const char *smtp_url = "smtps://mail.your-server.de:465";
+    const char *smtp_user = "no-reply@neumeier.cloud";
+    const char *smtp_pass = "DEIN_PASSWORT";
+    const char *mail_from = smtp_user;
+
+    if (cfg.from_name)
+        snprintf(from, sizeof(from), "From: %s <%s>", cfg.from_name, mail_from);
+    else
+        snprintf(from, sizeof(from), "From: %s", mail_from);
+
+    curl_easy_setopt(curl, CURLOPT_USERNAME, smtp_user);
+    curl_easy_setopt(curl, CURLOPT_PASSWORD, smtp_pass);
+    curl_easy_setopt(curl, CURLOPT_URL, smtp_url);
     curl_easy_setopt(curl, CURLOPT_USE_SSL, CURLUSESSL_ALL);
+    curl_easy_setopt(curl, CURLOPT_MAIL_FROM, mail_from);
+
+    recipients = curl_slist_append(recipients, cfg.to);
+    for (int i = 0; i < cfg.cc_count; i++) recipients = curl_slist_append(recipients, cfg.cc[i]);
+    for (int i = 0; i < cfg.bcc_count; i++) recipients = curl_slist_append(recipients, cfg.bcc[i]);
+    curl_easy_setopt(curl, CURLOPT_MAIL_RCPT, recipients);
+
+    curl_mime *mime = curl_mime_init(curl);
+    curl_mimepart *part;
+
+    // Text- oder HTML-Body
+    part = curl_mime_addpart(mime);
+    curl_mime_data(part, cfg.body, CURL_ZERO_TERMINATED);
+    curl_mime_type(part, cfg.html ? "text/html" : "text/plain");
+
+    // Anhänge
+    for (int i = 0; i < cfg.attach_count; i++) {
+        part = curl_mime_addpart(mime);
+        curl_mime_filedata(part, cfg.attachments[i]);
+    }
+
+    curl_easy_setopt(curl, CURLOPT_MIMEPOST, mime);
+
+    // Header
+    struct curl_slist *headers = NULL;
+    char subject_header[512];
+    snprintf(subject_header, sizeof(subject_header), "Subject: %s", cfg.subject);
+    headers = curl_slist_append(headers, subject_header);
+    headers = curl_slist_append(headers, from);
+
+    if (cfg.priority) {
+        if (!strcmp(cfg.priority, "high"))
+            headers = curl_slist_append(headers, "X-Priority: 1 (Highest)");
+        else if (!strcmp(cfg.priority, "low"))
+            headers = curl_slist_append(headers, "X-Priority: 5 (Lowest)");
+        else
+            headers = curl_slist_append(headers, "X-Priority: 3 (Normal)");
+    }
+
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
     CURLcode res = curl_easy_perform(curl);
     if (res != CURLE_OK)
-        fprintf(stderr, "Fehler: %s\n", curl_easy_strerror(res));
+        fprintf(stderr, "❌ Fehler beim Senden: %s\n", curl_easy_strerror(res));
     else
-        printf("✅ Mail erfolgreich gesendet an: %s\n", to);
+        printf("✅ E-Mail erfolgreich gesendet an %s\n", cfg.to);
 
     curl_slist_free_all(recipients);
+    curl_slist_free_all(headers);
+    curl_mime_free(mime);
     curl_easy_cleanup(curl);
     return 0;
 }
