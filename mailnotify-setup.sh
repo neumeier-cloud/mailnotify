@@ -1,13 +1,12 @@
 #!/bin/bash
 
-# Sicherstellen, dass whiptail verfügbar ist
+# Sicherstellen, dass whiptail vorhanden ist
 if ! command -v whiptail &> /dev/null; then
   echo "📦 Installiere whiptail..."
   sudo apt update
   sudo apt install -y whiptail
 fi
 
-# Menü
 CHOICE=$(whiptail --title "Mailnotify Installer" --menu "Wähle eine Option:" 15 60 4 \
 "1" "Installieren von Mailnotify" \
 "2" "Deinstallation von Mailnotify" \
@@ -25,7 +24,7 @@ case $CHOICE in
     sudo apt update
     sudo apt install -y git build-essential libcurl4-openssl-dev
 
-    # Verzeichnis vorbereiten
+    # /tmp/mailnotify sauber entfernen
     [ -d /tmp/mailnotify ] && rm -rf /tmp/mailnotify
 
     if ! git clone "$REPO_URL" /tmp/mailnotify; then
@@ -49,13 +48,17 @@ case $CHOICE in
     ;;
 
   2)
+    sudo systemctl stop mailnotify.timer mailnotify.service 2>/dev/null
+    sudo systemctl disable mailnotify.timer mailnotify.service 2>/dev/null
     sudo rm -f /usr/local/bin/mailnotify
     sudo rm -f /etc/mailnotify.conf
     sudo rm -f /etc/systemd/system/mailnotify.service
     sudo rm -f /etc/systemd/system/mailnotify.timer
-    sudo systemctl daemon-reexec
-
-    whiptail --msgbox "✅ Mailnotify wurde vollständig entfernt." 8 50
+    sudo systemctl daemon-reload
+    sudo rm -rf /tmp/mailnotify
+    # Optional: Sich selbst löschen:
+    # rm -- "$0"
+    whiptail --title "Deinstallation" --msgbox "✅ Mailnotify und alle Spuren wurden entfernt." 8 60
     ;;
 
   3)
