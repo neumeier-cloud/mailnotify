@@ -43,7 +43,7 @@ sudo chmod 600 /etc/mailnotify.conf
 
 ```bash
 sudo apt update
-sudo apt install libcurl4-openssl-dev
+sudo apt install libcurl4-openssl-dev build-essential
 ```
 
 ### 2. Build ausführen (mit Build-Skript)
@@ -154,9 +154,9 @@ chmod +x mailnotify-setup.sh
 ./mailnotify-setup.sh
 ```
 
-### Alternativ: Direkter Download per curl
+### Alternativ: Direkter Download per curl (robuste Version)
 
-Falls du `git` nicht verwenden möchtest, kannst du das Setup-Skript direkt herunterladen:
+Falls du `git` nicht verwenden möchtest, kannst du das interaktive Setup-Skript direkt herunterladen und ausführen:
 
 ```bash
 curl -o mailnotify-setup.sh https://raw.githubusercontent.com/neumeier-cloud/mailnotify/main/mailnotify-setup.sh
@@ -164,20 +164,19 @@ chmod +x mailnotify-setup.sh
 ./mailnotify-setup.sh
 ```
 
-### Voraussetzungen:
+Dieses Skript:
+
+- 📦 installiert automatisch alle nötigen Pakete (`whiptail`, `git`, `build-essential`, `libcurl4-openssl-dev`)
+- 🧹 entfernt alte Installationen aus `/tmp/mailnotify`
+- 🔧 kompiliert `mailnotify.c` sicher mit `gcc`
+- ✅ installiert die Binary und legt `/etc/mailnotify.conf` an (falls nicht vorhanden)
+
+### Voraussetzungen (nur bei Bedarf):
 
 ```bash
 sudo apt update
 sudo apt install -y whiptail git gcc libcurl4-openssl-dev
 ```
-
-### Funktionen:
-
-- 📥 Klonen des Projekts per Git
-- 🔨 Kompilieren der Binary (`gcc`)
-- ⚙️ Installation nach `/usr/local/bin`
-- 🛠️ Beispiel-Konfiguration nach `/etc/`
-- 🧹 Deinstallation aller Dateien über Menü
 
 Das Skript fragt dich im Menü nach der gewünschten Aktion:
 
