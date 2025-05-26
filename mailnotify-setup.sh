@@ -31,6 +31,9 @@ case $CHOICE in
       exit 1
     fi
 
+    # Verzeichnis vorab löschen, wenn vorhanden
+    [ -d /tmp/mailnotify ] && rm -rf /tmp/mailnotify
+
     git clone "$REPO_URL" /tmp/mailnotify || { whiptail --msgbox "❌ Fehler beim Klonen" 8 40; exit 1; }
 
     cd /tmp/mailnotify || exit 1
