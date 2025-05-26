@@ -51,8 +51,10 @@ void print_help() {
     printf("  --priority <low|normal|high>  E-Mail-Priorität\n");
     printf("  -h, --help                    Diese Hilfe anzeigen\n\n");
     printf("Beispiel:\n");
-    printf("  mailnotify --to user@domain.de --subject \"Info\" --body \"<b>Hallo</b>\" --html \\\n");
-    printf("    --from-name \"Max Mustermann\" --cc chef@firma.de --attach /tmp/file.txt --priority high\n");
+    printf("  mailnotify --to alice@example.com,bob@example.com \\\n");
+    printf("    --subject \"Backup-Status\" --body \"<b>OK</b>\" --html \\\n");
+    printf("    --from-name \"Backup Bot\" --cc carol@example.com \\\n");
+    printf("    --attach /tmp/log.txt --priority high\n");
     exit(0);
 }
 
