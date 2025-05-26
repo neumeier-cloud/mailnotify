@@ -27,3 +27,148 @@ smtp_port = 465
 smtp_user = no-reply@neumeier.cloud
 smtp_pass = DEIN_PASSWORT
 from       = no-reply@neumeier.cloud
+```
+
+**Berechtigung sichern:**
+
+```bash
+sudo chmod 600 /etc/mailnotify.conf
+```
+
+---
+
+## 🛠️ Kompilierung & Installation
+
+### 1. Abhängigkeit installieren
+
+```bash
+sudo apt update
+sudo apt install libcurl4-openssl-dev
+```
+
+### 2. Build ausführen (mit Build-Skript)
+
+```bash
+chmod +x build.sh
+./build.sh
+```
+
+### Alternativ manuell kompilieren:
+
+```bash
+gcc mailnotify.c -o mailnotify -lcurl
+```
+
+### 3. Binary installieren
+
+```bash
+sudo cp mailnotify /usr/local/bin/
+sudo chmod +x /usr/local/bin/mailnotify
+```
+
+### 4. Konfigurationsdatei einrichten
+
+```bash
+sudo cp mailnotify.conf /etc/
+sudo chmod 600 /etc/mailnotify.conf
+```
+
+---
+
+## 📤 Beispielnutzung
+
+```bash
+mailnotify \
+  --to admin@example.com \
+  --subject "Backup abgeschlossen" \
+  --body "<h1>Backup OK</h1><p>Alle Systeme normal.</p>" \
+  --html
+```
+
+---
+
+## 🔁 Automatisierung mit systemd
+
+### 1. systemd-Service
+
+Pfad: `/etc/systemd/system/mailnotify.service`
+
+```ini
+[Unit]
+Description=Mailnotify: täglicher Bericht
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/mailnotify \\
+  --to admin@example.com \\
+  --subject "Systemstatus" \\
+  --body "<h1>Status OK</h1>" \\
+  --html
+```
+
+### 2. systemd-Timer
+
+Pfad: `/etc/systemd/system/mailnotify.timer`
+
+```ini
+[Unit]
+Description=Täglicher Mailnotify-Aufruf
+
+[Timer]
+OnCalendar=*-*-* 08:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+### 3. Aktivieren
+
+```bash
+sudo systemctl daemon-reexec
+sudo systemctl enable --now mailnotify.timer
+```
+
+---
+
+## 🧪 Manuelle Test-Mail
+
+```bash
+mailnotify \
+  --to admin@example.com \
+  --subject "Test erfolgreich" \
+  --body "<h1>Mailnotify funktioniert</h1>" \
+  --html
+```
+
+---
+
+## 🛡️ Sicherheitshinweis
+
+- Passwörter liegen im Klartext in der Konfigurationsdatei.  
+- Nur auf abgesicherten Systemen verwenden.  
+- TLS-Zertifikatsprüfung ist deaktiviert – nur für interne Nutzung empfohlen.
+
+---
+
+## ℹ️ Zusätzliche Hinweise
+
+- Stelle sicher, dass dein SMTP-Server TLS/SSL auf Port 465 unterstützt.  
+- Konfigurationsdatei sollte **nur für root lesbar** sein.  
+- `mailnotify` läuft synchron – prüfe Exit-Codes bei Skriptnutzung.  
+- Für produktive Sicherheit ggf. TLS-Verifikation im Code aktivieren.  
+- Diese Software ist experimentell und sollte vor dem produktiven Einsatz getestet werden.
+
+---
+
+## 📁 Projektstruktur
+
+```
+mailnotify/
+├── mailnotify.c
+├── build.sh
+├── mailnotify.conf
+├── mailnotify.service
+├── mailnotify.timer
+└── README.md
+```
