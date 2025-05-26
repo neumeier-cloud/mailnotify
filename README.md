@@ -1,19 +1,21 @@
 # Mailnotify
 
-**mailnotify** ist ein kompakter, eigenständiger Mailclient in C für Linux/Proxmox, der SMTP-Nachrichten mit HTML-Unterstützung und Konfigurationsdatei versendet – ohne Python oder externe Abhängigkeiten.
+**mailnotify** ist ein moderner, eigenständiger SMTP-Mailclient in C für Linux/Proxmox.  
+Unterstützt HTML-Mails, beliebige Anhänge, freie Absendernamen, Priorität, Mehrfachempfänger und Konfigdatei.
 
 ---
 
 ## ✅ Features
 
-- SMTP-Versand via `libcurl` (SSL / SMTPS)
-- Konfigurierbare Zugangsdaten über `/etc/mailnotify.conf`
-- Unterstützung für:
-  - `--to` Empfänger
-  - `--subject` Betreff
-  - `--body` E-Mail-Inhalt (Text oder HTML)
-  - `--html` HTML-Format aktivieren
-- Kompatibel mit z. B. Proxmox VE 8, Debian 12
+- SMTP-Versand via `libcurl` (SMTPS/SSL)
+- Konfigurierbar über `/etc/mailnotify.conf`
+- Empfänger, Cc, Bcc: mehrere Adressen (Komma-getrennt)
+- Anhänge (`--attach`)
+- HTML oder Text
+- Freier Absendername (`--from-name`)
+- Priorität (`--priority`)
+- TUI-Installer (`mailnotify-setup.sh`)
+- Kompatibel mit Proxmox, Debian, Ubuntu
 
 ---
 
@@ -75,41 +77,61 @@ sudo chmod 600 /etc/mailnotify.conf
 
 ---
 
+## 🧰 Installieren/Deinstallieren mit grafischem Menü (TUI)
+
+```bash
+curl -o mailnotify-setup.sh https://raw.githubusercontent.com/neumeier-cloud/mailnotify/main/mailnotify-setup.sh
+chmod +x mailnotify-setup.sh
+./mailnotify-setup.sh
+```
+
+---
+
 ## 📤 Beispielnutzung
+
+### Einfache Mail
 
 ```bash
 mailnotify \
-  --to admin@example.com \
+  --to "admin@example.com" \
   --subject "Backup abgeschlossen" \
   --body "<h1>Backup OK</h1><p>Alle Systeme normal.</p>" \
   --html
+```
+
+### Mehrere Empfänger, CC und BCC
+
+```bash
+mailnotify \
+  --to "user1@firma.de,user2@domain.de" \
+  --cc "boss@firma.de,teamlead@firma.de" \
+  --bcc "audit@domain.de" \
+  --subject "Status" \
+  --body "Der nächtliche Report ist angehängt." \
+  --attach /tmp/report.pdf \
+  --priority high \
+  --from-name "Proxmox Backup"
 ```
 
 ---
 
 ## 🔁 Automatisierung mit systemd
 
-### 1. systemd-Service
+### 1. Service
 
-Pfad: `/etc/systemd/system/mailnotify.service`
-
+`/etc/systemd/system/mailnotify.service`  
 ```ini
 [Unit]
 Description=Mailnotify: täglicher Bericht
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/mailnotify \
-  --to admin@example.com \
-  --subject "Systemstatus" \
-  --body "<h1>Status OK</h1>" \
-  --html
+ExecStart=/usr/local/bin/mailnotify --to user1@domain.de,user2@domain.de --subject "Status" --body "Alles OK." --html
 ```
 
-### 2. systemd-Timer
+### 2. Timer
 
-Pfad: `/etc/systemd/system/mailnotify.timer`
-
+`/etc/systemd/system/mailnotify.timer`  
 ```ini
 [Unit]
 Description=Täglicher Mailnotify-Aufruf
@@ -134,58 +156,38 @@ sudo systemctl enable --now mailnotify.timer
 ## 🧪 Manuelle Test-Mail
 
 ```bash
-mailnotify \
-  --to admin@example.com \
-  --subject "Test erfolgreich" \
-  --body "<h1>Mailnotify funktioniert</h1>" \
-  --html
+mailnotify --to "test@example.com" --subject "Test" --body "<h1>Mailnotify Test</h1>" --html
 ```
 
 ---
 
-## 🧰 Installieren/Deinstallieren mit grafischem Menü (TUI)
+## 📖 Hilfe
 
-Du kannst Mailnotify mit einem interaktiven Menü (TUI) über `whiptail` installieren oder deinstallieren.
-
-### Ausführen:
+Alle Optionen auf einen Blick:
 
 ```bash
-chmod +x mailnotify-setup.sh
-./mailnotify-setup.sh
+mailnotify --help
 ```
 
-### Alternativ: Direkter Download per curl (robuste Version)
-
-Falls du `git` nicht verwenden möchtest, kannst du das interaktive Setup-Skript direkt herunterladen und ausführen:
-
-```bash
-curl -o mailnotify-setup.sh https://raw.githubusercontent.com/neumeier-cloud/mailnotify/main/mailnotify-setup.sh
-chmod +x mailnotify-setup.sh
-./mailnotify-setup.sh
 ```
+mailnotify - Einfacher SMTP-Mailer für Linux mit MIME-Support
 
-Dieses Skript:
+Nutzung:
+  mailnotify [OPTIONEN]
 
-- 📦 installiert automatisch alle nötigen Pakete (`whiptail`, `git`, `build-essential`, `libcurl4-openssl-dev`)
-- 🧹 entfernt alte Installationen aus `/tmp/mailnotify`
-- 🔧 kompiliert `mailnotify.c` sicher mit `gcc`
-- ✅ installiert die Binary und legt `/etc/mailnotify.conf` an (falls nicht vorhanden)
+Pflichtoptionen:
+  --to <EMAIL[,EMAIL...]>         Zieladresse(n), Komma-getrennt
+  --subject <TEXT>                Betreff
+  --body <TEXT/HTML>              Inhalt
 
-### Voraussetzungen (nur bei Bedarf):
-
-```bash
-sudo apt update
-sudo apt install -y whiptail git gcc libcurl4-openssl-dev
-```
-
-Das Skript fragt dich im Menü nach der gewünschten Aktion:
-
-```
-Mailnotify Installer
---------------------
-1) Installieren von Mailnotify
-2) Deinstallation von Mailnotify
-3) Beenden
+Optionale Flags:
+  --html                          Inhalt ist HTML
+  --from-name "<NAME>"            Absendername
+  --attach <DATEI>                Anhang (mehrfach möglich)
+  --cc <EMAIL[,EMAIL...]>         Cc-Empfänger (mehrfach möglich)
+  --bcc <EMAIL[,EMAIL...]>        Bcc-Empfänger (mehrfach möglich)
+  --priority <low|normal|high>    E-Mail-Priorität
+  -h, --help                      Hilfe anzeigen
 ```
 
 ---
@@ -195,16 +197,6 @@ Mailnotify Installer
 - Passwörter liegen im Klartext in der Konfigurationsdatei.  
 - Nur auf abgesicherten Systemen verwenden.  
 - TLS-Zertifikatsprüfung ist deaktiviert – nur für interne Nutzung empfohlen.
-
----
-
-## ℹ️ Zusätzliche Hinweise
-
-- Stelle sicher, dass dein SMTP-Server TLS/SSL auf Port 465 unterstützt.  
-- Konfigurationsdatei sollte **nur für root lesbar** sein.  
-- `mailnotify` läuft synchron – prüfe Exit-Codes bei Skriptnutzung.  
-- Für produktive Sicherheit ggf. TLS-Verifikation im Code aktivieren.  
-- Diese Software ist experimentell und sollte vor dem produktiven Einsatz getestet werden.
 
 ---
 
