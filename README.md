@@ -154,6 +154,16 @@ chmod +x mailnotify-setup.sh
 ./mailnotify-setup.sh
 ```
 
+### Alternativ: Direkter Download per curl
+
+Falls du `git` nicht verwenden möchtest, kannst du das Setup-Skript direkt herunterladen:
+
+```bash
+curl -o mailnotify-setup.sh https://raw.githubusercontent.com/neumeier-cloud/mailnotify/main/mailnotify-setup.sh
+chmod +x mailnotify-setup.sh
+./mailnotify-setup.sh
+```
+
 ### Voraussetzungen:
 
 ```bash
