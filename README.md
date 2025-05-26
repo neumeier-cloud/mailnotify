@@ -99,10 +99,10 @@ Description=Mailnotify: täglicher Bericht
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/mailnotify \\
-  --to admin@example.com \\
-  --subject "Systemstatus" \\
-  --body "<h1>Status OK</h1>" \\
+ExecStart=/usr/local/bin/mailnotify \
+  --to admin@example.com \
+  --subject "Systemstatus" \
+  --body "<h1>Status OK</h1>" \
   --html
 ```
 
@@ -143,6 +143,44 @@ mailnotify \
 
 ---
 
+## 🧰 Installieren/Deinstallieren mit grafischem Menü (TUI)
+
+Du kannst Mailnotify mit einem interaktiven Menü (TUI) über `whiptail` installieren oder deinstallieren.
+
+### Ausführen:
+
+```bash
+chmod +x mailnotify-setup.sh
+./mailnotify-setup.sh
+```
+
+### Voraussetzungen:
+
+```bash
+sudo apt update
+sudo apt install -y whiptail git gcc libcurl4-openssl-dev
+```
+
+### Funktionen:
+
+- 📥 Klonen des Projekts per Git
+- 🔨 Kompilieren der Binary (`gcc`)
+- ⚙️ Installation nach `/usr/local/bin`
+- 🛠️ Beispiel-Konfiguration nach `/etc/`
+- 🧹 Deinstallation aller Dateien über Menü
+
+Das Skript fragt dich im Menü nach der gewünschten Aktion:
+
+```
+Mailnotify Installer
+--------------------
+1) Installieren von Mailnotify
+2) Deinstallation von Mailnotify
+3) Beenden
+```
+
+---
+
 ## 🛡️ Sicherheitshinweis
 
 - Passwörter liegen im Klartext in der Konfigurationsdatei.  
@@ -170,5 +208,6 @@ mailnotify/
 ├── mailnotify.conf
 ├── mailnotify.service
 ├── mailnotify.timer
+├── mailnotify-setup.sh
 └── README.md
 ```
