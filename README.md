@@ -1,25 +1,25 @@
 # Mailnotify
 
-**mailnotify** ist ein moderner, eigenständiger SMTP-Mailclient in C für Linux/Proxmox.  
-Unterstützt HTML-Mails, beliebige Anhänge, freie Absendernamen, Priorität, Mehrfachempfänger und Konfigdatei.
+**Mailnotify** ist ein moderner, eigenständiger SMTP-Mailclient in C für Linux/Proxmox.  
+Er unterstützt HTML-Mails, beliebige Anhänge, freie Absendernamen, Priorität, Mehrfachempfänger und eine Konfigurationsdatei.
 
 ---
 
 ## ✅ Features
 
-- SMTP-Versand via `libcurl` (SMTPS/SSL)
-- Konfigurierbar über `/etc/mailnotify.conf`
-- Empfänger, Cc, Bcc: mehrere Adressen (Komma-getrennt)
-- Anhänge (`--attach`)
-- HTML oder Text
-- Freier Absendername (`--from-name`)
-- Priorität (`--priority`)
-- TUI-Installer (`mailnotify-setup.sh`)
-- Kompatibel mit Proxmox, Debian, Ubuntu
+- **SMTP-Versand** via `libcurl` (SMTPS/SSL)
+- **Konfigurierbar** über `/etc/mailnotify.conf`
+- **Empfänger**, **Cc**, **Bcc**: mehrere Adressen (Komma-getrennt)
+- **Anhänge** (`--attach`)
+- **HTML** oder **Text**
+- **Freier Absendername** (`--from-name`)
+- **Priorität** (`--priority`)
+- **TUI-Installer** (`mailnotify-setup.sh`)
+- Kompatibel mit **Proxmox**, **Debian**, **Ubuntu**
 
 ---
 
-## 🔧 Konfiguration
+## ⚙️ Konfiguration
 
 Pfad: `/etc/mailnotify.conf`
 
@@ -31,7 +31,7 @@ smtp_pass = DEIN_PASSWORT
 from       = no-reply@neumeier.cloud
 ```
 
-**Berechtigung sichern:**
+**Hinweis:** Stelle sicher, dass die Datei nur für den Benutzer lesbar ist:
 
 ```bash
 sudo chmod 600 /etc/mailnotify.conf
@@ -39,45 +39,32 @@ sudo chmod 600 /etc/mailnotify.conf
 
 ---
 
-## 🛠️ Kompilierung & Installation
+## 🛠️ Installation
 
-### 1. Abhängigkeit installieren
+### 1. Abhängigkeiten installieren
 
 ```bash
 sudo apt update
-sudo apt install libcurl4-openssl-dev build-essential
+sudo apt install -y libcurl4-openssl-dev build-essential git
 ```
 
-### 2. Build ausführen (mit Build-Skript)
+### 2. Repository klonen und kompilieren
 
 ```bash
-chmod +x build.sh
-./build.sh
-```
-
-### Alternativ manuell kompilieren:
-
-```bash
+git clone https://github.com/neumeier-cloud/mailnotify.git
+cd mailnotify
 gcc mailnotify.c -o mailnotify -lcurl
-```
-
-### 3. Binary installieren
-
-```bash
 sudo cp mailnotify /usr/local/bin/
 sudo chmod +x /usr/local/bin/mailnotify
-```
-
-### 4. Konfigurationsdatei einrichten
-
-```bash
 sudo cp mailnotify.conf /etc/
 sudo chmod 600 /etc/mailnotify.conf
 ```
 
 ---
 
-## 🧰 Installieren/Deinstallieren mit grafischem Menü (TUI)
+## 🧰 Komfort-Installer
+
+Alternativ mit grafischem Menü (whiptail):
 
 ```bash
 curl -o mailnotify-setup.sh https://raw.githubusercontent.com/neumeier-cloud/mailnotify/main/mailnotify-setup.sh
@@ -85,53 +72,64 @@ chmod +x mailnotify-setup.sh
 ./mailnotify-setup.sh
 ```
 
+Der Installer kann:
+
+- Installieren
+- Rebuild
+- Deinstallieren (alles löschen)
+
 ---
 
-## 📤 Beispielnutzung
+## 📤 Beispiel-Nutzung
 
-### Einfache Mail
+### Einfache HTML-Mail
 
 ```bash
 mailnotify \
-  --to "admin@example.com" \
-  --subject "Backup abgeschlossen" \
-  --body "<h1>Backup OK</h1><p>Alle Systeme normal.</p>" \
+  --to "alice@example.com" \
+  --subject "Testmail" \
+  --body "<h1>Test erfolgreich!</h1>" \
   --html
 ```
 
-### Mehrere Empfänger, CC und BCC
+### Mit Anhang, CC, BCC, From-Name, hoher Priorität
 
 ```bash
 mailnotify \
-  --to "user1@firma.de,user2@domain.de" \
-  --cc "boss@firma.de,teamlead@firma.de" \
-  --bcc "audit@domain.de" \
-  --subject "Status" \
-  --body "Der nächtliche Report ist angehängt." \
-  --attach /tmp/report.pdf \
-  --priority high \
-  --from-name "Proxmox Backup"
+  --to "alice@example.com,bob@example.com" \
+  --cc "carol@example.com" \
+  --bcc "daniel@example.com" \
+  --subject "Backup abgeschlossen" \
+  --body "<h2>Backup-Status: OK</h2><p>Siehe Anhang.</p>" \
+  --html \
+  --from-name "Backup Service" \
+  --attach /var/log/backup.log \
+  --priority high
 ```
 
 ---
 
-## 🔁 Automatisierung mit systemd
+## 🔄 Automatisierung (systemd)
 
-### 1. Service
+### Service (`/etc/systemd/system/mailnotify.service`)
 
-`/etc/systemd/system/mailnotify.service`  
 ```ini
 [Unit]
 Description=Mailnotify: täglicher Bericht
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/mailnotify --to user1@domain.de,user2@domain.de --subject "Status" --body "Alles OK." --html
+ExecStart=/usr/local/bin/mailnotify \
+  --to alice@example.com,bob@example.com \
+  --cc carol@example.com \
+  --subject "Täglicher Status" \
+  --body "Der tägliche Statusbericht." \
+  --html \
+  --from-name "Proxmox Notifier"
 ```
 
-### 2. Timer
+### Timer (`/etc/systemd/system/mailnotify.timer`)
 
-`/etc/systemd/system/mailnotify.timer`  
 ```ini
 [Unit]
 Description=Täglicher Mailnotify-Aufruf
@@ -144,10 +142,10 @@ Persistent=true
 WantedBy=timers.target
 ```
 
-### 3. Aktivieren
+Aktivieren mit:
 
 ```bash
-sudo systemctl daemon-reexec
+sudo systemctl daemon-reload
 sudo systemctl enable --now mailnotify.timer
 ```
 
@@ -156,51 +154,52 @@ sudo systemctl enable --now mailnotify.timer
 ## 🧪 Manuelle Test-Mail
 
 ```bash
-mailnotify --to "test@example.com" --subject "Test" --body "<h1>Mailnotify Test</h1>" --html
+mailnotify --to "alice@example.com" --subject "Test" --body "Testmail von Mailnotify"
 ```
 
 ---
 
-## 📖 Hilfe
-
-Alle Optionen auf einen Blick:
+## 🆘 Hilfe/Optionen
 
 ```bash
 mailnotify --help
 ```
 
 ```
-mailnotify - Einfacher SMTP-Mailer für Linux mit MIME-Support
+mailnotify - SMTP-Mailer mit MIME, Attachments, CC/BCC, Freitext-Absender
 
 Nutzung:
   mailnotify [OPTIONEN]
 
 Pflichtoptionen:
-  --to <EMAIL[,EMAIL...]>         Zieladresse(n), Komma-getrennt
-  --subject <TEXT>                Betreff
-  --body <TEXT/HTML>              Inhalt
+  --to <EMAIL[,EMAIL2,...]>     Zieladresse(n), Komma-getrennt
+  --subject <TEXT>              Betreff
+  --body <TEXT/HTML>            Inhalt
 
 Optionale Flags:
-  --html                          Inhalt ist HTML
-  --from-name "<NAME>"            Absendername
-  --attach <DATEI>                Anhang (mehrfach möglich)
-  --cc <EMAIL[,EMAIL...]>         Cc-Empfänger (mehrfach möglich)
-  --bcc <EMAIL[,EMAIL...]>        Bcc-Empfänger (mehrfach möglich)
-  --priority <low|normal|high>    E-Mail-Priorität
-  -h, --help                      Hilfe anzeigen
+  --html                        Inhalt ist HTML
+  --from-name <NAME>            Absendername (frei)
+  --attach <DATEI>              Anhang (mehrfach möglich)
+  --cc <EMAIL[,EMAIL2,...]>     CC (mehrfach möglich)
+  --bcc <EMAIL[,EMAIL2,...]>    BCC (mehrfach möglich)
+  --priority <low|normal|high>  E-Mail-Priorität
+  -h, --help                    Diese Hilfe anzeigen
+
+Beispiel:
+  mailnotify --to alice@example.com,bob@example.com --subject "Report" --body "<b>Fertig!</b>" --html --attach /tmp/log.txt
 ```
 
 ---
 
-## 🛡️ Sicherheitshinweis
+## 🔐 Sicherheitshinweis
 
-- Passwörter liegen im Klartext in der Konfigurationsdatei.  
-- Nur auf abgesicherten Systemen verwenden.  
-- TLS-Zertifikatsprüfung ist deaktiviert – nur für interne Nutzung empfohlen.
+- Passwörter liegen **im Klartext** in der Konfigurationsdatei.
+- `/etc/mailnotify.conf` **unbedingt** auf 600 setzen.
+- Für interne Nutzung – TLS/SSL wird verwendet, aber Verifizierung ist für maximale Kompatibilität deaktiviert.
 
 ---
 
-## 📁 Projektstruktur
+## 📂 Verzeichnisstruktur
 
 ```
 mailnotify/
@@ -212,3 +211,15 @@ mailnotify/
 ├── mailnotify-setup.sh
 └── README.md
 ```
+
+---
+
+## ❓ Support
+
+Fehler, Fragen oder Erweiterungswünsche?  
+Einfach Issue auf GitHub eröffnen oder Support-Mail an: `admin@example.com`  
+Natürlich kannst du auch hier im Chat jederzeit nachfragen!
+
+---
+
+**Happy Mailing!**
