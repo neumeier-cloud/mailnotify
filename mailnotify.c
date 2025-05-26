@@ -1,3 +1,4 @@
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -90,23 +91,21 @@ int main(int argc, char *argv[]) {
     }
 
     struct curl_slist *recipients = NULL;
-    char from[256];
-
-    // ⚠️ Feste SMTP-Zugangsdaten – ggf. durch Konfigparser ersetzen
-    const char *smtp_url = "smtps://mail.your-server.de:465";
-    const char *smtp_user = "no-reply@neumeier.cloud";
-    const char *smtp_pass = "DEIN_PASSWORT";
-    const char *mail_from = smtp_user;
+    char url[256], from[256], header_priority[64];
+    char *smtp_server = "smtp://mail.your-server.de:465";
+    char *smtp_user = "no-reply@neumeier.cloud";
+    char *smtp_pass = "DEIN_PASSWORT";
+    char *mail_from = smtp_user;
 
     if (cfg.from_name)
-        snprintf(from, sizeof(from), "From: %s <%s>", cfg.from_name, mail_from);
+        snprintf(from, sizeof(from), "%s <%s>", cfg.from_name, mail_from);
     else
-        snprintf(from, sizeof(from), "From: %s", mail_from);
+        snprintf(from, sizeof(from), "%s", mail_from);
 
     curl_easy_setopt(curl, CURLOPT_USERNAME, smtp_user);
     curl_easy_setopt(curl, CURLOPT_PASSWORD, smtp_pass);
-    curl_easy_setopt(curl, CURLOPT_URL, smtp_url);
-    curl_easy_setopt(curl, CURLOPT_USE_SSL, CURLUSESSL_ALL);
+    curl_easy_setopt(curl, CURLOPT_URL, smtp_server);
+    curl_easy_setopt(curl, CURLOPT_USE_SSL, (long)CURLUSESSL_ALL);
     curl_easy_setopt(curl, CURLOPT_MAIL_FROM, mail_from);
 
     recipients = curl_slist_append(recipients, cfg.to);
@@ -117,12 +116,10 @@ int main(int argc, char *argv[]) {
     curl_mime *mime = curl_mime_init(curl);
     curl_mimepart *part;
 
-    // Text- oder HTML-Body
     part = curl_mime_addpart(mime);
     curl_mime_data(part, cfg.body, CURL_ZERO_TERMINATED);
     curl_mime_type(part, cfg.html ? "text/html" : "text/plain");
 
-    // Anhänge
     for (int i = 0; i < cfg.attach_count; i++) {
         part = curl_mime_addpart(mime);
         curl_mime_filedata(part, cfg.attachments[i]);
@@ -130,29 +127,28 @@ int main(int argc, char *argv[]) {
 
     curl_easy_setopt(curl, CURLOPT_MIMEPOST, mime);
 
-    // Header
     struct curl_slist *headers = NULL;
-    char subject_header[512];
+    char subject_header[256];
     snprintf(subject_header, sizeof(subject_header), "Subject: %s", cfg.subject);
     headers = curl_slist_append(headers, subject_header);
-    headers = curl_slist_append(headers, from);
 
     if (cfg.priority) {
-        if (!strcmp(cfg.priority, "high"))
+        if (strcmp(cfg.priority, "high") == 0)
             headers = curl_slist_append(headers, "X-Priority: 1 (Highest)");
-        else if (!strcmp(cfg.priority, "low"))
+        else if (strcmp(cfg.priority, "low") == 0)
             headers = curl_slist_append(headers, "X-Priority: 5 (Lowest)");
         else
             headers = curl_slist_append(headers, "X-Priority: 3 (Normal)");
     }
 
+    headers = curl_slist_append(headers, from);
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
     CURLcode res = curl_easy_perform(curl);
     if (res != CURLE_OK)
         fprintf(stderr, "❌ Fehler beim Senden: %s\n", curl_easy_strerror(res));
     else
-        printf("✅ E-Mail erfolgreich gesendet an %s\n", cfg.to);
+        printf("✅ E-Mail gesendet an %s\n", cfg.to);
 
     curl_slist_free_all(recipients);
     curl_slist_free_all(headers);
