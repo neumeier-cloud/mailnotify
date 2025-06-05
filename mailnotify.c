@@ -70,13 +70,18 @@ char *trim(char *str) {
 }
 
 // Zerlege Komma-getrennte Empfänger
-int split_emails(char *in, char **out, int max) {
+int split_emails(const char *in, char **out, int max) {
     int n = 0;
-    char *p = strtok(in, ",");
+    char *copy = strdup(in);
+    if(!copy) return 0;
+
+    char *p = strtok(copy, ",");
     while (p && n < max) {
         out[n++] = strdup(trim(p));
         p = strtok(NULL, ",");
     }
+
+    free(copy);
     return n;
 }
 
